@@ -74,8 +74,8 @@ export function resolveCloudPublicConfig(extra: ExpoExtra = Constants.expoConfig
 }
 
 export function hasCloudPublicConfig(): boolean {
-  const config = resolveCloudPublicConfig();
-  return Boolean(config.clerk.publishableKey && config.clerk.jwtTemplate && config.relay.url);
+  // Privacy build: T3 Connect is compiled out, so Connect is never configured.
+  return false;
 }
 
 type Configured<T> = {
@@ -87,13 +87,10 @@ type TracingPublicConfig = Omit<CloudPublicConfig, "observability"> & {
 };
 
 export function hasTracingPublicConfig(
-  config: CloudPublicConfig = resolveCloudPublicConfig(),
-): config is TracingPublicConfig {
-  return Boolean(
-    config.observability.tracesUrl &&
-    config.observability.tracesDataset &&
-    config.observability.tracesToken,
-  );
+  _config: CloudPublicConfig = resolveCloudPublicConfig(),
+): _config is TracingPublicConfig {
+  // Privacy build: relay traces never leave this device.
+  return false;
 }
 
 export function resolveRelayClerkTokenOptions() {

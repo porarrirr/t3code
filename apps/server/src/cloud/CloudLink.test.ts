@@ -170,20 +170,28 @@ const withService = <A, E>(
     );
   });
 
-it.effect("tells the relay before saving the hold setting locally", () =>
-  withService({}, ({ preferences, stored, relayCalls }) =>
-    Effect.gen(function* () {
-      yield* preferences.update({ publishAgentActivity: true, holdWebhooksWhileOffline: true });
-      assert.deepEqual(relayCalls, [true]);
-      assert.equal(
-        new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
-        "true",
-      );
-    }),
-  ),
+// Privacy build: T3 Connect is compiled out (`ManagedLimits.allowsConnect` is
+// always false), so every link-facing test below is unreachable. Skip them
+// rather than delete them — they cover the relay flows again if Connect is
+// ever re-enabled.
+const t3ConnectCompiledOut = true;
+
+it.effect.skipIf(t3ConnectCompiledOut)(
+  "tells the relay before saving the hold setting locally",
+  () =>
+    withService({}, ({ preferences, stored, relayCalls }) =>
+      Effect.gen(function* () {
+        yield* preferences.update({ publishAgentActivity: true, holdWebhooksWhileOffline: true });
+        assert.deepEqual(relayCalls, [true]);
+        assert.equal(
+          new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
+          "true",
+        );
+      }),
+    ),
 );
 
-it.effect("puts the relay back when the local save fails", () =>
+it.effect.skipIf(t3ConnectCompiledOut)("puts the relay back when the local save fails", () =>
   withService({ failHoldWrite: true }, ({ preferences, stored, relayCalls }) =>
     Effect.gen(function* () {
       const error = yield* preferences
@@ -202,132 +210,144 @@ it.effect("puts the relay back when the local save fails", () =>
   ),
 );
 
-it.effect("leaves the relay untouched when the activity setting can't be saved", () =>
-  withService({ failActivityWrite: true }, ({ preferences, stored, relayCalls }) =>
-    Effect.gen(function* () {
-      const error = yield* preferences
-        .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
-        .pipe(Effect.flip);
-      assert.deepInclude(error, {
-        _tag: "CloudLinkInternalError",
-        operation: "persist-preferences",
-      });
-      assert.deepEqual(relayCalls, []);
-      assert.equal(
-        new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
-        "false",
-      );
-    }),
-  ),
+it.effect.skipIf(t3ConnectCompiledOut)(
+  "leaves the relay untouched when the activity setting can't be saved",
+  () =>
+    withService({ failActivityWrite: true }, ({ preferences, stored, relayCalls }) =>
+      Effect.gen(function* () {
+        const error = yield* preferences
+          .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
+          .pipe(Effect.flip);
+        assert.deepInclude(error, {
+          _tag: "CloudLinkInternalError",
+          operation: "persist-preferences",
+        });
+        assert.deepEqual(relayCalls, []);
+        assert.equal(
+          new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
+          "false",
+        );
+      }),
+    ),
 );
 
-it.effect("keeps both settings unchanged when the relay refuses the hold change", () =>
-  withService({ relayFails: true }, ({ preferences, stored }) =>
-    Effect.gen(function* () {
-      yield* preferences
-        .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
-        .pipe(Effect.flip);
-      assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "false");
-      assert.equal(
-        new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
-        "false",
-      );
-    }),
-  ),
+it.effect.skipIf(t3ConnectCompiledOut)(
+  "keeps both settings unchanged when the relay refuses the hold change",
+  () =>
+    withService({ relayFails: true }, ({ preferences, stored }) =>
+      Effect.gen(function* () {
+        yield* preferences
+          .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
+          .pipe(Effect.flip);
+        assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "false");
+        assert.equal(
+          new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
+          "false",
+        );
+      }),
+    ),
 );
 
-it.effect("two overlapping updates are applied one after the other", () => {
-  let release!: () => void;
-  let started!: () => void;
-  const released = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const firstAtRelay = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  return withService({ holdFirstRelayCall: { started, released } }, ({ preferences, stored }) =>
-    Effect.gen(function* () {
-      const first = yield* preferences
-        .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
-        .pipe(Effect.forkChild);
-      yield* Effect.promise(() => firstAtRelay);
-      const second = yield* preferences
-        .update({ publishAgentActivity: false, holdWebhooksWhileOffline: false })
-        .pipe(Effect.forkChild);
-      yield* Effect.yieldNow;
-      assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "true");
-      release();
-      yield* Fiber.join(first);
-      yield* Fiber.join(second);
-      assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "false");
-      assert.equal(
-        new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
-        "false",
-      );
-    }),
-  );
-});
+it.effect.skipIf(t3ConnectCompiledOut)(
+  "two overlapping updates are applied one after the other",
+  () => {
+    let release!: () => void;
+    let started!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const firstAtRelay = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    return withService({ holdFirstRelayCall: { started, released } }, ({ preferences, stored }) =>
+      Effect.gen(function* () {
+        const first = yield* preferences
+          .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
+          .pipe(Effect.forkChild);
+        yield* Effect.promise(() => firstAtRelay);
+        const second = yield* preferences
+          .update({ publishAgentActivity: false, holdWebhooksWhileOffline: false })
+          .pipe(Effect.forkChild);
+        yield* Effect.yieldNow;
+        assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "true");
+        release();
+        yield* Fiber.join(first);
+        yield* Fiber.join(second);
+        assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "false");
+        assert.equal(
+          new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
+          "false",
+        );
+      }),
+    );
+  },
+);
 
-it.effect("an update the client walks away from still finishes", () => {
-  let release!: () => void;
-  let started!: () => void;
-  const released = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const atRelay = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  return withService({ holdFirstRelayCall: { started, released } }, ({ preferences, stored }) =>
-    Effect.gen(function* () {
-      const update = yield* preferences
-        .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
-        .pipe(Effect.forkChild);
-      yield* Effect.promise(() => atRelay);
-      const interrupted = yield* Fiber.interrupt(update).pipe(Effect.forkChild);
-      yield* Effect.yieldNow;
-      release();
-      yield* Fiber.join(interrupted);
-      assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "true");
-      assert.equal(
-        new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
-        "true",
-      );
-    }),
-  );
-});
+it.effect.skipIf(t3ConnectCompiledOut)(
+  "an update the client walks away from still finishes",
+  () => {
+    let release!: () => void;
+    let started!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const atRelay = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    return withService({ holdFirstRelayCall: { started, released } }, ({ preferences, stored }) =>
+      Effect.gen(function* () {
+        const update = yield* preferences
+          .update({ publishAgentActivity: true, holdWebhooksWhileOffline: true })
+          .pipe(Effect.forkChild);
+        yield* Effect.promise(() => atRelay);
+        const interrupted = yield* Fiber.interrupt(update).pipe(Effect.forkChild);
+        yield* Effect.yieldNow;
+        release();
+        yield* Fiber.join(interrupted);
+        assert.equal(new TextDecoder().decode(stored.get(PUBLISH_AGENT_ACTIVITY_SECRET)), "true");
+        assert.equal(
+          new TextDecoder().decode(stored.get(HOLD_WEBHOOKS_WHILE_OFFLINE_SECRET)),
+          "true",
+        );
+      }),
+    );
+  },
+);
 
-it.effect("mints a T3 Connect credential under the host's device approval setting", () =>
-  withService({}, ({ mintCredential, connectCredentialRequests, stored }) =>
-    Effect.gen(function* () {
-      const before = new Set(stored.keys());
-      const proof = yield* signRelayJwt({
-        privateKey: cloudMintKeys.privateKey,
-        typ: RELAY_MINT_REQUEST_TYP,
-        payload: {
-          iss: "https://relay.test",
-          aud: "t3-env:environment-1",
-          sub: "cloud-user-1",
-          // Longer than a file name can be, and not one: the marker is named by a digest.
-          jti: "../mint-jti-1".padEnd(300, "x"),
-          iat: 0,
-          exp: 60,
-          environmentId: "environment-1",
-          clientProofKeyThumbprint: "client-jkt",
-          cnf: { jkt: "client-jkt" },
-          nonce: "mint-nonce-1",
-          scope: ["environment:connect"],
-        },
-      }).pipe(Effect.provide(NodePlatformCrypto.layerSignature));
-      yield* mintCredential({ proof });
-      assert.deepEqual(connectCredentialRequests, [
-        { proofKeyThumbprint: "client-jkt", requireApproval: false },
-      ]);
-      const markers = [...stored.keys()].filter((name) => !before.has(name)).toSorted();
-      assert.lengthOf(markers, 2);
-      assert.match(markers[0]!, /^cloud-mint-jti-[0-9a-f]{64}$/);
-      assert.match(markers[1]!, /^cloud-mint-nonce-[0-9a-f]{64}$/);
-    }),
-  ),
+it.effect.skipIf(t3ConnectCompiledOut)(
+  "mints a T3 Connect credential under the host's device approval setting",
+  () =>
+    withService({}, ({ mintCredential, connectCredentialRequests, stored }) =>
+      Effect.gen(function* () {
+        const before = new Set(stored.keys());
+        const proof = yield* signRelayJwt({
+          privateKey: cloudMintKeys.privateKey,
+          typ: RELAY_MINT_REQUEST_TYP,
+          payload: {
+            iss: "https://relay.test",
+            aud: "t3-env:environment-1",
+            sub: "cloud-user-1",
+            // Longer than a file name can be, and not one: the marker is named by a digest.
+            jti: "../mint-jti-1".padEnd(300, "x"),
+            iat: 0,
+            exp: 60,
+            environmentId: "environment-1",
+            clientProofKeyThumbprint: "client-jkt",
+            cnf: { jkt: "client-jkt" },
+            nonce: "mint-nonce-1",
+            scope: ["environment:connect"],
+          },
+        }).pipe(Effect.provide(NodePlatformCrypto.layerSignature));
+        yield* mintCredential({ proof });
+        assert.deepEqual(connectCredentialRequests, [
+          { proofKeyThumbprint: "client-jkt", requireApproval: false },
+        ]);
+        const markers = [...stored.keys()].filter((name) => !before.has(name)).toSorted();
+        assert.lengthOf(markers, 2);
+        assert.match(markers[0]!, /^cloud-mint-jti-[0-9a-f]{64}$/);
+        assert.match(markers[1]!, /^cloud-mint-nonce-[0-9a-f]{64}$/);
+      }),
+    ),
 );
 
 it.effect("unlinks on startup and refuses to link when the policy turns Connect off", () =>

@@ -125,7 +125,12 @@ function makeHandle(input: {
   });
 }
 
-describe("CloudManagedEndpointRuntime", () => {
+// Privacy build: T3 Connect is compiled out (`ManagedLimits.allowsConnect` is
+// always false), so the runtime never spawns a connector and these scenarios are
+// unreachable. Skip the suite rather than delete it — it covers the connector
+// logic again if Connect is ever re-enabled.
+const t3ConnectCompiledOut = true;
+describe.skipIf(t3ConnectCompiledOut)("CloudManagedEndpointRuntime", () => {
   it.effect("serializes updates to persisted cloud link state", () =>
     Effect.gen(function* () {
       const firstEntered = yield* Deferred.make<void>();

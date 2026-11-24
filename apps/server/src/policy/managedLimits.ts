@@ -72,9 +72,12 @@ export function allowsAuthPolicy(policy: PolicyDocument, authPolicy: ServerAuthP
 export const allowsRemoteClients = (policy: PolicyDocument) =>
   allowsAuthPolicy(policy, "remote-reachable");
 
-/** T3 Connect is a way for remote clients in, so a policy without `remote` turns it off too. */
-export const allowsConnect = (policy: PolicyDocument) =>
-  policy.document?.limits?.connect !== false && allowsRemoteClients(policy);
+/**
+ * T3 Connect is a way for remote clients in, so a policy without `remote` turns it off too.
+ * This build is privacy-first: T3 Connect is compiled out entirely, so no policy, setting,
+ * or link can enable it and the server never talks to the relay or Clerk.
+ */
+export const allowsConnect = (_policy: PolicyDocument) => false;
 
 const refuse = (policy: PolicyDocument, action: string, detail?: string) =>
   new ManagedPolicyRefusedError({

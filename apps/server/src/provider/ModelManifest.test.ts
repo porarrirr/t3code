@@ -280,6 +280,7 @@ describe("ModelManifest service", () => {
         layerService({
           prefix: "model-manifest-fetch-test",
           response: () => Response.json(REMOTE_MANIFEST),
+          settings: { enableProviderUpdateChecks: true },
         }),
       ),
     ),
@@ -306,6 +307,7 @@ describe("ModelManifest service", () => {
           layerService({
             prefix: "model-manifest-stale-fetch-test",
             response: () => Response.json(remote),
+            settings: { enableProviderUpdateChecks: true },
           }),
         ),
       );
@@ -334,6 +336,7 @@ describe("ModelManifest service", () => {
         layerService({
           prefix: "model-manifest-last-good-test",
           response: () => Response.json(responses[responseIndex]),
+          settings: { enableProviderUpdateChecks: true },
         }),
       ),
     );
@@ -362,6 +365,7 @@ describe("ModelManifest service", () => {
             fetches += 1;
             return Response.json(REMOTE_MANIFEST);
           },
+          settings: { enableProviderUpdateChecks: true },
         }),
       ),
     );

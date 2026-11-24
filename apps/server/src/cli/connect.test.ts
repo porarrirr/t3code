@@ -71,7 +71,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
   (it) => {
     it.effect.each([
       { subcommand: "status", hint: "connect link" },
-      { subcommand: "publish", hint: "connect login" },
+      // Privacy build: `t3 connect publish` is refused because T3 Connect is compiled out.
     ])("t3 connect $subcommand names `t3 $hint` with --base-dir", ({ subcommand, hint }) =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;

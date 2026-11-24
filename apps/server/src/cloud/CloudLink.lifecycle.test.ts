@@ -109,7 +109,11 @@ describe("consumeCloudReplayGuards", () => {
   );
 });
 
-describe("releaseManagedTunnelOnShutdown", () => {
+// Privacy build: T3 Connect is compiled out (`ManagedLimits.allowsConnect` is
+// always false), so no managed tunnel can ever run. Skip the suite rather than
+// delete it — it covers the lifecycle again if Connect is ever re-enabled.
+const t3ConnectCompiledOut = true;
+describe.skipIf(t3ConnectCompiledOut)("releaseManagedTunnelOnShutdown", () => {
   const cliToken: CliTokenManager.PersistedToken = {
     accessToken: "cli-access-token",
     refreshToken: "cli-refresh-token",

@@ -1,7 +1,4 @@
-import {
-  clerkFrontendApiHostnameFromPublishableKey,
-  relayClerkTokenOptions,
-} from "@t3tools/shared/relayAuth";
+import { relayClerkTokenOptions } from "@t3tools/shared/relayAuth";
 import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
 import * as Schema from "effect/Schema";
 
@@ -70,51 +67,14 @@ export function relayTelemetryEnabled(): boolean | null {
   return desktopRelayTelemetry;
 }
 
+// Privacy build: relay traces never leave this machine.
 export function resolveRelayTracingConfig() {
-  // The relay exporter is created during module initialization, so this must be synchronous.
-  if (relayTelemetryEnabled() === false) {
-    return null;
-  }
-  const { relayTracing } = resolveCloudPublicConfig();
-  return relayTracing.tracesUrl && relayTracing.tracesDataset && relayTracing.tracesToken
-    ? {
-        tracesUrl: relayTracing.tracesUrl,
-        tracesDataset: relayTracing.tracesDataset,
-        tracesToken: relayTracing.tracesToken,
-      }
-    : null;
+  return null;
 }
 
+// Privacy build: T3 Connect is compiled out, so Connect is never configured.
 export function hasCloudPublicConfig(): boolean {
-  const config = resolveCloudPublicConfig();
-  if (!config.clerkPublishableKey || !config.clerkJwtTemplate || !config.relayUrl) {
-    return false;
-  }
-
-  // Electron has its own auth runtime; development keys also support private browser origins.
-  if (
-    typeof window === "undefined" ||
-    window.desktopBridge !== undefined ||
-    !config.clerkPublishableKey.startsWith("pk_live_")
-  ) {
-    return true;
-  }
-
-  try {
-    // Custom Frontend API hosts use clerk.<production domain>.
-    const domain = clerkFrontendApiHostnameFromPublishableKey(config.clerkPublishableKey).replace(
-      /^clerk\./u,
-      "",
-    );
-    const { hostname, protocol, port } = window.location;
-    return (
-      protocol === "https:" &&
-      port === "" &&
-      (hostname === domain || hostname.endsWith(`.${domain}`))
-    );
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 export function resolveRelayClerkTokenOptions() {

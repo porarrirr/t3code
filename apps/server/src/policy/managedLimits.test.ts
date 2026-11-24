@@ -116,7 +116,7 @@ it.effect("allows the clients the policy lists", () =>
   }),
 );
 
-it.effect("tells clients Connect is off when the policy leaves out remote clients", () =>
+it.effect("tells clients Connect is always off in this privacy build", () =>
   Effect.gen(function* () {
     const managed = yield* ManagedPolicy.fromDocument("/test/policy.json", {
       ...desktopAndLocal.document,
@@ -125,8 +125,11 @@ it.effect("tells clients Connect is off when the policy leaves out remote client
       clients: ["desktop", "local-browser"],
       connect: false,
     });
-    assert.isTrue(ManagedLimits.allowsConnect(policy({ clients: ["remote"] })));
+    // T3 Connect is compiled out, so no policy, setting, or missing document can enable it.
+    assert.isFalse(ManagedLimits.allowsConnect(policy({ clients: ["remote"] })));
     assert.isFalse(ManagedLimits.allowsConnect(policy({ connect: false })));
+    assert.isFalse(ManagedLimits.allowsConnect(policy()));
+    assert.isFalse(ManagedLimits.allowsConnect({ document: undefined }));
   }),
 );
 

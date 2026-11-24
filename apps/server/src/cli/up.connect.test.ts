@@ -61,14 +61,9 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
   "t3 up with T3 Connect",
   (it) => {
     it.effect.each([
-      { label: "no link", prior: null, events: ["link", "restart", "unlink", "restart"] },
-      // The publish-only link comes back, with its activity publishing.
-      {
-        label: "a publish-only link",
-        prior: "publish_only" as const,
-        events: ["link", "restart", "restart"],
-      },
-    ])("a failed restart after --connect undoes it, then restarts: $label before", (input) =>
+      { label: "no link", prior: null },
+      { label: "a publish-only link", prior: "publish_only" as const },
+    ])("--connect is refused in this privacy build: $label before", (input) =>
       Effect.gen(function* () {
         events.length = 0;
         link.desired = input.prior !== null;
@@ -116,8 +111,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer, NetService.layer))
         );
 
         expect(exit._tag).toBe("Failure");
-        // Any unlink comes before the restart on the old settings.
-        expect(events).toEqual(input.events);
+        // T3 Connect is compiled out, so --connect never links, restarts, or unlinks.
+        expect(events).toEqual([]);
         expect(link).toEqual(
           input.prior === null
             ? { desired: false, mode: "managed" }
